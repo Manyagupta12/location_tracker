@@ -24,6 +24,7 @@
       border: none;
       cursor: pointer;
       font-size: 16px;
+      margin: 5px;
     }
 
     .btn:disabled {
@@ -40,6 +41,10 @@
 </head>
 <body>
   <h1 class="info">Track Your Phone's Location</h1>
+  
+  <label for="distanceInput" class="info">Enter Distance (in meters): </label>
+  <input type="number" id="distanceInput" placeholder="Distance in meters" class="info" />
+  
   <button id="startTrackingBtn" class="btn" onclick="startTracking()">Start Tracking</button>
   <button id="stopTrackingBtn" class="btn" disabled onclick="stopTracking()">Stop Tracking</button>
 
@@ -49,6 +54,8 @@
   <script>
     let map, marker;
     let watchId = null;
+    let initialLocation = null; // To store the initial location
+    let distanceThreshold = 0; // User-defined distance threshold
 
     // Function to initialize the map
     function initMap(lat, lon) {
@@ -64,13 +71,50 @@
 
     // Function to update the map with the new position
     function updateMap(lat, lon) {
-      map.setView([lat, lon], 13);
-      marker.setLatLng([lat, lon]);
-      marker.bindPopup(`Latitude: ${lat}, Longitude: ${lon}`).openPopup();
+      if (marker) {
+        marker.setLatLng([lat, lon]);
+        marker.bindPopup(`Latitude: ${lat}, Longitude: ${lon}`).openPopup();
+      } else {
+        marker = L.marker([lat, lon]).addTo(map);
+        marker.bindPopup("You are here!").openPopup();
+      }
+      map.setView([lat, lon], 13); // Center the map on the new location
+      
+      // Check if distance exceeds the threshold
+      if (initialLocation) {
+        const distance = calculateDistance(initialLocation.lat, initialLocation.lon, lat, lon);
+        if (distance > distanceThreshold) {
+          alert(`Alert! You have moved beyond ${distanceThreshold} meters from the starting point.`);
+        }
+      }
+    }
+
+    // Function to calculate the distance between two points
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+      const toRad = (value) => (value * Math.PI) / 180;
+
+      const R = 6371e3; // Radius of the Earth in meters
+      const φ1 = toRad(lat1);
+      const φ2 = toRad(lat2);
+      const Δφ = toRad(lat2 - lat1);
+      const Δλ = toRad(lon2 - lon1);
+
+      const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+      return R * c; // Distance in meters
     }
 
     // Function to start tracking the phone's location
     function startTracking() {
+      distanceThreshold = parseFloat(document.getElementById("distanceInput").value);
+      if (isNaN(distanceThreshold) || distanceThreshold <= 0) {
+        alert("Please enter a valid distance.");
+        return;
+      }
+
       // Get the current position using the Geolocation API
       if (navigator.geolocation) {
         document.getElementById("startTrackingBtn").disabled = true;
@@ -85,7 +129,8 @@
             document.getElementById('coords').innerText = `Latitude: ${lat}, Longitude: ${lon}`;
 
             // Initialize or update the map
-            if (!map) {
+            if (!initialLocation) {
+              initialLocation = { lat, lon }; // Store the initial location
               initMap(lat, lon); // Initialize the map on the first call
             } else {
               updateMap(lat, lon); // Update the map for subsequent positions
