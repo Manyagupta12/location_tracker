@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Phone Location Tracker</title>
+  <style>
+    /* Style for the map container */
+    #map {
+      height: 400px;
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .info {
+      margin: 15px;
+      font-size: 18px;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .btn:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+  </style>
+  <!-- Include Leaflet.js for map rendering -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+  />
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+</head>
+<body>
+  <h1 class="info">Track Your Phone's Location</h1>
+  <button id="startTrackingBtn" class="btn" onclick="startTracking()">Start Tracking</button>
+  <button id="stopTrackingBtn" class="btn" disabled onclick="stopTracking()">Stop Tracking</button>
+
+  <div class="info" id="coords">Latitude: --, Longitude: --</div>
+  <div id="map"></div>
+
+  <script>
+    let map, marker;
+    let watchId = null;
+
+    // Function to initialize the map
+    function initMap(lat, lon) {
+      map = L.map('map').setView([lat, lon], 13);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19
+      }).addTo(map);
+
+      marker = L.marker([lat, lon]).addTo(map);
+      marker.bindPopup("You are here!").openPopup();
+    }
+
+    // Function to update the map with the new position
+    function updateMap(lat, lon) {
+      map.setView([lat, lon], 13);
+      marker.setLatLng([lat, lon]);
+      marker.bindPopup(`Latitude: ${lat}, Longitude: ${lon}`).openPopup();
+    }
+
+    // Function to start tracking the phone's location
+    function startTracking() {
+      // Get the current position using the Geolocation API
+      if (navigator.geolocation) {
+        document.getElementById("startTrackingBtn").disabled = true;
+        document.getElementById("stopTrackingBtn").disabled = false;
+
+        watchId = navigator.geolocation.watchPosition(
+          (position) => {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+
+            // Update the displayed coordinates
+            document.getElementById('coords').innerText = `Latitude: ${lat}, Longitude: ${lon}`;
+
+            // Initialize or update the map
+            if (!map) {
+              initMap(lat, lon); // Initialize the map on the first call
+            } else {
+              updateMap(lat, lon); // Update the map for subsequent positions
+            }
+          },
+          (error) => {
+            alert(`Error: ${error.message}`);
+          },
+          {
+            enableHighAccuracy: true, // More accurate GPS data
+            maximumAge: 10000, // Cached location is no older than 10 seconds
+            timeout: 10000, // Maximum wait time to get location
+          }
+        );
+      } else {
+        alert("Geolocation is not supported by this device.");
+      }
+    }
+
+    // Function to stop tracking the location
+    function stopTracking() {
+      if (watchId) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+        document.getElementById("startTrackingBtn").disabled = false;
+        document.getElementById("stopTrackingBtn").disabled = true;
+        alert("Stopped tracking.");
+      }
+    }
+  </script>
+</body>
+</html>
